@@ -22,17 +22,13 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  // Fetch all users via the API route (uses service role key)
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/admin/users`,
-    { cache: "no-store" }
-  );
+  // Query profiles directly — avoids cookie-forwarding issues with internal fetch
+  const { data: usersData } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  let users: Profile[] = [];
-  if (res.ok) {
-    const json = await res.json();
-    users = json.users ?? [];
-  }
+  const users: Profile[] = usersData ?? [];
 
   return <AdminClient users={users} currentUserId={user.id} />;
 }
