@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { type Profile, SPECIALTIES } from "@/lib/types";
 
 interface AdminClientProps {
@@ -25,11 +25,44 @@ interface ConfirmState {
   loading: boolean;
 }
 
+interface AmionSyncResult {
+  event_id: string;
+  event_title: string;
+  event_date: string;
+  residents_added: string[];
+  residents_skipped: string[];
+}
+
+interface AmionSyncState {
+  month: string;
+  year: string;
+  loading: boolean;
+  error: string;
+  result: { message: string; total_added: number; total_skipped: number; results: AmionSyncResult[] } | null;
+}
+
 function phoneFormat(val: string): string {
   const digits = val.replace(/\D/g, "").slice(0, 10);
   if (digits.length < 4) return digits;
   if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+const MONTHS = [
+  { value: "01", label: "January" }, { value: "02", label: "February" },
+  { value: "03", label: "March" },   { value: "04", label: "April" },
+  { value: "05", label: "May" },     { value: "06", label: "June" },
+  { value: "07", label: "July" },    { value: "08", label: "August" },
+  { value: "09", label: "September" },{ value: "10", label: "October" },
+  { value: "11", label: "November" },{ value: "12", label: "December" },
+];
+
+function getDefaultMonthYear() {
+  const now = new Date();
+  return {
+    month: String(now.getMonth() + 1).padStart(2, "0"),
+    year: String(now.getFullYear()),
+  };
 }
 
 export default function AdminClient({ users: initialUsers, currentUserId }: AdminClientProps) {
@@ -46,6 +79,34 @@ export default function AdminClient({ users: initialUsers, currentUserId }: Admi
   const [confirm, setConfirm] = useState<ConfirmState>({
     open: false, action: "delete", user: null, loading: false,
   });
+
+  const defaults = getDefaultMonthYear();
+  const [amion, setAmion] = useState<AmionSyncState>({
+    month: defaults.month,
+    year: defaults.year,
+    loading: false,
+    error: "",
+    result: null,
+  });
+
+  async function runAmionSync() {
+    setAmion((s) => ({ ...s, loading: true, error: "", result: null }));
+    try {
+      const res = await fetch("/api/admin/amion-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month: amion.month, year: parseInt(amion.year) }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setAmion((s) => ({ ...s, loading: false, error: json.error ?? "Sync failed." }));
+      } else {
+        setAmion((s) => ({ ...s, loading: false, result: json }));
+      }
+    } catch {
+      setAmion((s) => ({ ...s, loading: false, error: "Network error. Please try again." }));
+    }
+  }
 
   function showToast(msg: string, type: "success" | "error") {
     setToast({ msg, type });
@@ -160,6 +221,99 @@ export default function AdminClient({ users: initialUsers, currentUserId }: Admi
 
   return (
     <div className="page-container">
+
+      {/* ── Amion Sync Panel ── */}
+      <div className="settings-card" style={{ marginBottom: "1.5rem" }}>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, margin: "0 0 0.25rem" }}>
+          Amion Block Schedule Sync
+        </h2>
+        <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 1rem" }}>
+          Auto-assign MCUC residents from Amion to matching Mobile Clinic calendar events.
+        </p>
+
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div className="form-group" style={{ margin: 0, minWidth: "140px" }}>
+            <label style={{ fontSize: "0.8rem" }}>Month</label>
+            <select
+              value={amion.month}
+              onChange={(e) => setAmion((s) => ({ ...s, month: e.target.value, result: null, error: "" }))}
+              disabled={amion.loading}
+            >
+              {MONTHS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group" style={{ margin: 0, minWidth: "100px" }}>
+            <label style={{ fontSize: "0.8rem" }}>Year</label>
+            <select
+              value={amion.year}
+              onChange={(e) => setAmion((s) => ({ ...s, year: e.target.value, result: null, error: "" }))}
+              disabled={amion.loading}
+            >
+              {[2025, 2026, 2027].map((y) => (
+                <option key={y} value={String(y)}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={runAmionSync}
+            disabled={amion.loading}
+            style={{ marginBottom: "0" }}
+          >
+            {amion.loading ? <span className="spinner" /> : null}
+            {amion.loading ? "Syncing…" : "Sync Amion"}
+          </button>
+        </div>
+
+        {amion.error && (
+          <div className="alert alert-error" style={{ marginTop: "1rem" }}>
+            {amion.error}
+          </div>
+        )}
+
+        {amion.result && (
+          <div style={{ marginTop: "1rem" }}>
+            <div
+              className="alert alert-success"
+              style={{ marginBottom: amion.result.results.length > 0 ? "0.75rem" : 0 }}
+            >
+              {amion.result.message}
+            </div>
+            {amion.result.results.length > 0 && (
+              <div style={{ fontSize: "0.8rem", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                {amion.result.results.map((r) => (
+                  <div
+                    key={r.event_id}
+                    style={{
+                      padding: "0.5rem 0.75rem",
+                      background: "var(--surface)",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    <div style={{ fontWeight: 600 }}>{r.event_title}</div>
+                    <div style={{ color: "var(--text-secondary)" }}>{r.event_date}</div>
+                    {r.residents_added.length > 0 && (
+                      <div style={{ color: "#065f46", marginTop: "0.2rem" }}>
+                        Added: {r.residents_added.join(", ")}
+                      </div>
+                    )}
+                    {r.residents_skipped.length > 0 && (
+                      <div style={{ color: "var(--text-muted)", marginTop: "0.1rem" }}>
+                        Already present: {r.residents_skipped.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── User Management Header ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
         <div>
           <h1 style={{ fontSize: "1.4rem", fontWeight: 700, margin: 0 }}>Admin Dashboard</h1>
