@@ -1,0 +1,377 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { type Profile, SPECIALTIES } from "@/lib/types";
+
+interface AdminClientProps {
+  users: Profile[];
+  currentUserId: string;
+}
+
+interface EditState {
+  open: boolean;
+  user: Profile | null;
+  full_name: string;
+  cell_number: string;
+  specialty: string;
+  saving: boolean;
+  error: string;
+}
+
+interface ConfirmState {
+  open: boolean;
+  action: "delete" | "toggle-admin";
+  user: Profile | null;
+  loading: boolean;
+}
+
+function phoneFormat(val: string): string {
+  const digits = val.replace(/\D/g, "").slice(0, 10);
+  if (digits.length < 4) return digits;
+  if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+export default function AdminClient({ users: initialUsers, currentUserId }: AdminClientProps) {
+  const [users, setUsers] = useState<Profile[]>(initialUsers);
+  const [search, setSearch] = useState("");
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  const [edit, setEdit] = useState<EditState>({
+    open: false, user: null,
+    full_name: "", cell_number: "", specialty: "",
+    saving: false, error: "",
+  });
+
+  const [confirm, setConfirm] = useState<ConfirmState>({
+    open: false, action: "delete", user: null, loading: false,
+  });
+
+  function showToast(msg: string, type: "success" | "error") {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  }
+
+  function openEdit(u: Profile) {
+    setEdit({
+      open: true, user: u,
+      full_name: u.full_name,
+      cell_number: u.cell_number,
+      specialty: u.specialty,
+      saving: false, error: "",
+    });
+    document.body.classList.add("modal-open");
+  }
+
+  function closeEdit() {
+    setEdit((e) => ({ ...e, open: false }));
+    document.body.classList.remove("modal-open");
+  }
+
+  async function saveEdit() {
+    if (!edit.user) return;
+    if (!edit.full_name.trim()) {
+      setEdit((e) => ({ ...e, error: "Name is required." }));
+      return;
+    }
+    setEdit((e) => ({ ...e, saving: true, error: "" }));
+    try {
+      const res = await fetch(`/api/admin/users/${edit.user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: edit.full_name.trim(),
+          cell_number: edit.cell_number.trim(),
+          specialty: edit.specialty,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setEdit((e) => ({ ...e, saving: false, error: json.error ?? "Failed to save." }));
+        return;
+      }
+      setUsers((prev) =>
+        prev.map((u) => (u.id === edit.user!.id ? { ...u, ...json.profile } : u))
+      );
+      showToast("User updated.", "success");
+      closeEdit();
+    } catch {
+      setEdit((e) => ({ ...e, saving: false, error: "Network error." }));
+    }
+  }
+
+  function openConfirm(action: "delete" | "toggle-admin", u: Profile) {
+    setConfirm({ open: true, action, user: u, loading: false });
+    document.body.classList.add("modal-open");
+  }
+
+  function closeConfirm() {
+    setConfirm((c) => ({ ...c, open: false }));
+    document.body.classList.remove("modal-open");
+  }
+
+  async function doConfirm() {
+    if (!confirm.user) return;
+    setConfirm((c) => ({ ...c, loading: true }));
+    try {
+      if (confirm.action === "delete") {
+        const res = await fetch(`/api/admin/users/${confirm.user.id}`, { method: "DELETE" });
+        if (res.ok) {
+          setUsers((prev) => prev.filter((u) => u.id !== confirm.user!.id));
+          showToast("User deleted.", "success");
+        } else {
+          const json = await res.json();
+          showToast(json.error ?? "Failed to delete.", "error");
+        }
+      } else {
+        const res = await fetch(`/api/admin/users/${confirm.user.id}/toggle-admin`, {
+          method: "POST",
+        });
+        const json = await res.json();
+        if (res.ok) {
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.id === confirm.user!.id ? { ...u, is_admin: json.is_admin } : u
+            )
+          );
+          showToast(
+            json.is_admin ? "Admin privileges granted." : "Admin privileges removed.",
+            "success"
+          );
+        } else {
+          showToast(json.error ?? "Failed to update.", "error");
+        }
+      }
+    } catch {
+      showToast("Network error.", "error");
+    }
+    setConfirm((c) => ({ ...c, loading: false, open: false }));
+    document.body.classList.remove("modal-open");
+  }
+
+  const filtered = users.filter((u) => {
+    const q = search.toLowerCase();
+    return (
+      u.full_name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.specialty.toLowerCase().includes(q)
+    );
+  });
+
+  return (
+    <div className="page-container">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
+        <div>
+          <h1 style={{ fontSize: "1.4rem", fontWeight: 700, margin: 0 }}>Admin Dashboard</h1>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>
+            {users.length} total {users.length === 1 ? "user" : "users"}
+          </p>
+        </div>
+        <div style={{ position: "relative" }}>
+          <input
+            type="search"
+            placeholder="Search users..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              padding: "0.45rem 0.875rem",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius)",
+              fontSize: "0.875rem",
+              outline: "none",
+              width: "220px",
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="admin-table-wrapper">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Specialty</th>
+              <th>Phone</th>
+              <th>Role</th>
+              <th>Joined</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={7} style={{ textAlign: "center", color: "var(--text-muted)", padding: "1.5rem" }}>
+                  No users found.
+                </td>
+              </tr>
+            )}
+            {filtered.map((u) => (
+              <tr key={u.id}>
+                <td data-label="Name">
+                  <span style={{ fontWeight: 500 }}>{u.full_name}</span>
+                  {u.id === currentUserId && (
+                    <span className="badge badge-primary" style={{ marginLeft: "0.4rem" }}>You</span>
+                  )}
+                </td>
+                <td data-label="Email" style={{ wordBreak: "break-all" }}>{u.email}</td>
+                <td data-label="Specialty">
+                  <span className="badge">{u.specialty}</span>
+                </td>
+                <td data-label="Phone">{u.cell_number || "—"}</td>
+                <td data-label="Role">
+                  {u.is_admin ? (
+                    <span className="badge badge-success">Admin</span>
+                  ) : (
+                    <span className="badge">User</span>
+                  )}
+                </td>
+                <td data-label="Joined" style={{ color: "var(--text-secondary)", fontSize: "0.8rem" }}>
+                  {new Date(u.created_at).toLocaleDateString("en-US", {
+                    month: "short", day: "numeric", year: "numeric",
+                  })}
+                </td>
+                <td data-label="Actions">
+                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => openEdit(u)}
+                    >
+                      Edit
+                    </button>
+                    {u.id !== currentUserId && (
+                      <>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={() => openConfirm("toggle-admin", u)}
+                        >
+                          {u.is_admin ? "Remove Admin" : "Make Admin"}
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => openConfirm("delete", u)}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Edit Modal */}
+      <div
+        className={`modal-overlay ${edit.open ? "open" : ""}`}
+        onClick={(e) => { if (e.target === e.currentTarget) closeEdit(); }}
+      >
+        <div className="modal" style={{ maxWidth: "480px" }}>
+          <div className="modal-title">Edit User</div>
+          {edit.user && (
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+              {edit.user.email}
+            </div>
+          )}
+          {edit.error && (
+            <div className="alert alert-error" style={{ marginBottom: "1rem" }}>
+              {edit.error}
+            </div>
+          )}
+          <div className="form-group">
+            <label>Full Name</label>
+            <input
+              type="text"
+              value={edit.full_name}
+              onChange={(e) => setEdit((s) => ({ ...s, full_name: e.target.value }))}
+            />
+          </div>
+          <div className="form-group">
+            <label>Cell Phone</label>
+            <input
+              type="tel"
+              value={edit.cell_number}
+              onChange={(e) => setEdit((s) => ({ ...s, cell_number: phoneFormat(e.target.value) }))}
+              placeholder="(619) 555-1234"
+            />
+          </div>
+          <div className="form-group">
+            <label>Specialty</label>
+            <select
+              value={edit.specialty}
+              onChange={(e) => setEdit((s) => ({ ...s, specialty: e.target.value }))}
+            >
+              {SPECIALTIES.map((sp) => (
+                <option key={sp.value} value={sp.value}>{sp.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="modal-actions">
+            <button className="btn btn-primary" onClick={saveEdit} disabled={edit.saving}>
+              {edit.saving ? <span className="spinner" /> : null}
+              Save
+            </button>
+            <button className="btn btn-outline" onClick={closeEdit} disabled={edit.saving}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirm Modal */}
+      <div
+        className={`modal-overlay ${confirm.open ? "open" : ""}`}
+        onClick={(e) => { if (e.target === e.currentTarget) closeConfirm(); }}
+      >
+        <div className="modal">
+          <div className="modal-title">
+            {confirm.action === "delete" ? "Delete User" : "Toggle Admin"}
+          </div>
+          <div className="modal-body">
+            {confirm.action === "delete"
+              ? `Are you sure you want to permanently delete ${confirm.user?.full_name}? This cannot be undone.`
+              : confirm.user?.is_admin
+              ? `Remove admin privileges from ${confirm.user?.full_name}?`
+              : `Grant admin privileges to ${confirm.user?.full_name}?`}
+          </div>
+          <div className="modal-actions">
+            <button
+              className={`btn ${confirm.action === "delete" ? "btn-danger" : "btn-secondary"}`}
+              onClick={doConfirm}
+              disabled={confirm.loading}
+            >
+              {confirm.loading ? <span className="spinner" /> : null}
+              Confirm
+            </button>
+            <button className="btn btn-outline" onClick={closeConfirm} disabled={confirm.loading}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "1.5rem",
+            right: "1.5rem",
+            zIndex: 2000,
+            padding: "0.75rem 1.25rem",
+            borderRadius: "var(--radius)",
+            background: toast.type === "success" ? "#065f46" : "#b91c1c",
+            color: "#fff",
+            fontSize: "0.875rem",
+            boxShadow: "var(--shadow-lg)",
+            maxWidth: "320px",
+          }}
+        >
+          {toast.msg}
+        </div>
+      )}
+    </div>
+  );
+}
