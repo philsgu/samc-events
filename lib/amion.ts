@@ -64,7 +64,10 @@ export async function fetchMcucResidents(
   const amionId = process.env.AMION_ID;
   if (!amionId) throw new Error("AMION_ID environment variable is not set.");
 
-  const url = `http://www.amion.com/cgi-bin/ocs?Lo=${encodeURIComponent(amionId)}&Rpt=625c&Month=${month}&Year=${year}`;
+  // Amion Year param = academic year start (July = start of new cycle)
+  // e.g. Jan–Jun 2026 → amionYear=2025; Jul–Dec 2026 → amionYear=2026
+  const amionYear = parseInt(month, 10) >= 7 ? parseInt(year, 10) : parseInt(year, 10) - 1;
+  const url = `http://www.amion.com/cgi-bin/ocs?Lo=${encodeURIComponent(amionId)}&Rpt=625c&Month=${month}&Year=${amionYear}`;
 
   const res = await fetch(url, {
     // Amion is HTTP-only; Next.js server-side fetch is fine
