@@ -7,7 +7,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = "SAMC Events <noreply@samc-events.vercel.app>";
+const FROM = "SAMC Events <noreply@healtolearn.com>";
 
 export interface ReminderEmailOptions {
   to: string;
