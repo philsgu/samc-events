@@ -149,8 +149,11 @@ export default function EventsClient({
   }
 
   function isSignedUp(ev: CalendarEvent): boolean {
+    if (!profile?.full_name) return false;
     const e = getEvent(ev);
-    return !!(e.description?.includes(`Signed up by: ${profile?.full_name}`));
+    return !!(e.description?.split("\n\n").some(
+      (p) => p.includes(`Signed up by: ${profile.full_name}`) && !p.includes("[Amion]")
+    ));
   }
 
   function isPast(ev: CalendarEvent): boolean {
