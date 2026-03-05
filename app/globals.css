@@ -471,6 +471,18 @@ nav {
   gap: 0.375rem;
 }
 
+.event-location-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.event-location-link:hover {
+  color: var(--primary);
+  text-decoration-style: solid;
+}
+
 .event-desc-block {
   font-size: 0.82rem;
   color: var(--text-secondary);
