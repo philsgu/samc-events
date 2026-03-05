@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { type Profile, SPECIALTIES } from "@/lib/types";
+import { type CronLog } from "@/app/admin/page";
 
 interface AdminClientProps {
   users: Profile[];
   currentUserId: string;
+  lastReminderRun: CronLog | null;
 }
 
 interface EditState {
@@ -65,7 +67,7 @@ function getDefaultMonthYear() {
   };
 }
 
-export default function AdminClient({ users: initialUsers, currentUserId }: AdminClientProps) {
+export default function AdminClient({ users: initialUsers, currentUserId, lastReminderRun }: AdminClientProps) {
   const [users, setUsers] = useState<Profile[]>(initialUsers);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
@@ -307,6 +309,70 @@ export default function AdminClient({ users: initialUsers, currentUserId }: Admi
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Email Reminder Status ── */}
+      <div className="settings-card" style={{ marginBottom: "1.5rem" }}>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, margin: "0 0 0.25rem" }}>
+          Email Reminder Status
+        </h2>
+        <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 0.75rem" }}>
+          Daily cron sends reminders at 8:00 AM Pacific to manually registered users for next-day events.
+        </p>
+
+        {!lastReminderRun ? (
+          <div style={{
+            display: "flex", alignItems: "center", gap: "0.5rem",
+            fontSize: "0.85rem", color: "var(--text-muted)",
+            padding: "0.6rem 0.875rem",
+            background: "var(--bg)", borderRadius: "var(--radius)",
+            border: "1px solid var(--border)",
+          }}>
+            <span>—</span>
+            <span>No runs recorded yet. The cron will run automatically at 8:00 AM Pacific.</span>
+          </div>
+        ) : (
+          <div style={{
+            padding: "0.75rem 1rem",
+            borderRadius: "var(--radius)",
+            border: `1px solid ${lastReminderRun.success ? "#bbf7d0" : lastReminderRun.total_failed > 0 ? "#fde68a" : "#e2e8f0"}`,
+            background: lastReminderRun.success ? "#f0fdf4" : lastReminderRun.total_failed > 0 ? "#fffbeb" : "var(--bg)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                {lastReminderRun.success ? (
+                  <span style={{ color: "#059669", fontSize: "1rem" }}>✓</span>
+                ) : lastReminderRun.total_failed > 0 ? (
+                  <span style={{ color: "#d97706", fontSize: "1rem" }}>⚠</span>
+                ) : (
+                  <span style={{ color: "var(--text-muted)", fontSize: "1rem" }}>—</span>
+                )}
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                  {lastReminderRun.summary ?? "Run completed."}
+                </span>
+              </div>
+              <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                {new Date(lastReminderRun.ran_at).toLocaleString("en-US", {
+                  timeZone: "America/Los_Angeles",
+                  month: "short", day: "numeric", year: "numeric",
+                  hour: "numeric", minute: "2-digit", hour12: true,
+                })}
+              </span>
+            </div>
+            {(lastReminderRun.total_sent > 0 || lastReminderRun.total_failed > 0) && (
+              <div style={{ marginTop: "0.4rem", fontSize: "0.78rem", color: "var(--text-secondary)", display: "flex", gap: "1rem" }}>
+                <span style={{ color: "#059669" }}>
+                  {lastReminderRun.total_sent} sent
+                </span>
+                {lastReminderRun.total_failed > 0 && (
+                  <span style={{ color: "#d97706" }}>
+                    {lastReminderRun.total_failed} failed
+                  </span>
+                )}
               </div>
             )}
           </div>

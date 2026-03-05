@@ -70,3 +70,29 @@ begin
   return new;
 end;
 $$;
+
+-- ─── Cron Logs ────────────────────────────────────────────────────────────────
+-- Run this block in Supabase SQL Editor to enable reminder run status in admin.
+
+create table if not exists public.cron_logs (
+  id           bigint generated always as identity primary key,
+  job          text not null,           -- e.g. 'send-reminders'
+  ran_at       timestamptz not null default now(),
+  success      boolean not null,
+  total_sent   int not null default 0,
+  total_failed int not null default 0,
+  summary      text,                    -- human-readable message
+  details      jsonb                    -- full results array
+);
+
+alter table public.cron_logs enable row level security;
+
+-- Only authenticated admins can read log rows
+create policy "Admins can read cron_logs"
+  on public.cron_logs for select
+  using (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.is_admin = true
+    )
+  );
