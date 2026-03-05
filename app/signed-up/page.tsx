@@ -226,6 +226,13 @@ function SignupCard({
           >
             View Calendar
           </a>
+          <a
+            href={`/api/ics/${event.id}?cal=${calKey}`}
+            className="btn btn-outline btn-sm"
+            download
+          >
+            Add to Calendar
+          </a>
         </div>
       )}
     </div>
