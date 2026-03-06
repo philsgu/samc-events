@@ -3,6 +3,7 @@ import { listEvents, getEventDateTime } from "@/lib/calendar";
 import { CALENDARS, type CalendarEvent, type Profile } from "@/lib/types";
 import { redirect } from "next/navigation";
 import AddToCalendarButton from "@/components/AddToCalendarButton";
+import MapLink from "@/components/MapLink";
 
 export const dynamic = "force-dynamic";
 
@@ -203,14 +204,7 @@ function SignupCard({
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
               <circle cx="12" cy="10" r="3" />
             </svg>
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="event-location-link"
-            >
-              {event.location}
-            </a>
+            <MapLink address={event.location} />
           </div>
         )}
       </div>
