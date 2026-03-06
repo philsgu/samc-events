@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { listEvents, getEventDateTime } from "@/lib/calendar";
 import { CALENDARS, type CalendarEvent, type Profile } from "@/lib/types";
 import { redirect } from "next/navigation";
+import AddToCalendarButton from "@/components/AddToCalendarButton";
 
 export const dynamic = "force-dynamic";
 
@@ -226,13 +227,11 @@ function SignupCard({
           >
             View Calendar
           </a>
-          <a
-            href={`/api/ics/${event.id}?cal=${calKey}`}
-            className="btn btn-outline btn-sm"
-            download
-          >
-            Add to Calendar
-          </a>
+          <AddToCalendarButton
+            eventId={event.id ?? ""}
+            calKey={calKey}
+            eventTitle={event.summary ?? "event"}
+          />
         </div>
       )}
     </div>
