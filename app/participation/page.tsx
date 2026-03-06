@@ -233,7 +233,14 @@ export default async function ParticipationPage() {
     accumulateForCalendar(pastMobile, "mobile");
     accumulateForCalendar(pastSport, "sport");
 
-    allUsers = Object.values(allUsersMap).sort((a, b) => b.total - a.total);
+    function extractLastName(row: AllUsersRow): string {
+      if (row.isAmion) return row.name.split(",")[0].trim();
+      const parts = row.name.trim().split(" ");
+      return parts[parts.length - 1];
+    }
+    allUsers = Object.values(allUsersMap).sort((a, b) =>
+      extractLastName(a).localeCompare(extractLastName(b))
+    );
     totalParticipants = allUsers.length;
   }
 
