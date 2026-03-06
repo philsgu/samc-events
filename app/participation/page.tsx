@@ -23,6 +23,14 @@ function parseSignedUpName(block: string): { name: string; isAmion: boolean } | 
   return { name, isAmion };
 }
 
+function parseSpecialty(block: string, isAmion: boolean): string {
+  if (isAmion) return "Amion";
+  // Second line format: "Full Name <email> (SPECIALTY) - cell"
+  const secondLine = block.split("\n")[1] ?? "";
+  const match = secondLine.match(/\(([^)]+)\)/);
+  return match ? match[1].trim() : "Unknown";
+}
+
 function getSignupBlocks(description: string): string[] {
   const normalized = description.replace(/<br>/gi, "\n");
   return normalized
@@ -52,6 +60,7 @@ export interface PersonalSummary {
 export interface AllUsersRow {
   name: string;
   isAmion: boolean;
+  specialty: string;
   mobileCount: number;
   sportCount: number;
   total: number;
@@ -218,6 +227,7 @@ export default async function ParticipationPage() {
             allUsersMap[key] = {
               name: parsed.name,
               isAmion: parsed.isAmion,
+              specialty: parseSpecialty(block, parsed.isAmion),
               mobileCount: 0,
               sportCount: 0,
               total: 0,

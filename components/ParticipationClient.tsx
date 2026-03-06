@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ParticipationData } from "@/app/participation/page";
 
 interface Props {
@@ -8,8 +9,25 @@ interface Props {
 
 export default function ParticipationClient({ data }: Props) {
   const { profile, personal, allUsers, totalParticipants, fetchError } = data;
+  const [specialtyFilter, setSpecialtyFilter] = useState("all");
 
   const totalPersonal = personal.mobileCount + personal.sportCount;
+
+  // Derive sorted unique specialty options — "All" first, "Amion" last, rest alphabetical
+  const specialtyOptions = allUsers
+    ? [
+        "all",
+        ...Array.from(new Set(allUsers.map((r) => r.specialty)))
+          .filter((s) => s !== "Amion")
+          .sort((a, b) => a.localeCompare(b)),
+        ...(allUsers.some((r) => r.specialty === "Amion") ? ["Amion"] : []),
+      ]
+    : ["all"];
+
+  const filteredUsers =
+    !allUsers || specialtyFilter === "all"
+      ? allUsers
+      : allUsers.filter((r) => r.specialty === specialtyFilter);
 
   return (
     <div className="page-container">
@@ -151,6 +169,7 @@ export default function ParticipationClient({ data }: Props) {
       {/* ── Admin: All Users ─────────────────────────────────────────────── */}
       {profile?.is_admin && allUsers !== null && (
         <section>
+          {/* Section header */}
           <h2
             style={{
               fontSize: "1rem",
@@ -163,12 +182,37 @@ export default function ParticipationClient({ data }: Props) {
               marginBottom: "1rem",
             }}
           >
-            All Participants — {totalParticipants} unique
+            All Participants —{" "}
+            {specialtyFilter === "all"
+              ? `${totalParticipants} unique`
+              : `${filteredUsers?.length} of ${totalParticipants} (${specialtyFilter})`}
           </h2>
 
-          {allUsers.length === 0 ? (
+          {/* Specialty filter pills */}
+          {specialtyOptions.length > 1 && (
+            <div
+              style={{
+                display: "flex",
+                gap: "0.4rem",
+                flexWrap: "wrap",
+                marginBottom: "1rem",
+              }}
+            >
+              {specialtyOptions.map((opt) => (
+                <button
+                  key={opt}
+                  className={`btn btn-sm ${specialtyFilter === opt ? "btn-primary" : "btn-outline"}`}
+                  onClick={() => setSpecialtyFilter(opt)}
+                >
+                  {opt === "all" ? "All" : opt}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!filteredUsers || filteredUsers.length === 0 ? (
             <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
-              No participation data found.
+              No participants found{specialtyFilter !== "all" ? ` for ${specialtyFilter}` : ""}.
             </p>
           ) : (
             <div className="admin-table-wrapper">
@@ -176,13 +220,14 @@ export default function ParticipationClient({ data }: Props) {
                 <thead>
                   <tr>
                     <th>Name</th>
+                    <th>Specialty</th>
                     <th>Mobile Clinic</th>
                     <th>Sports Medicine</th>
                     <th>Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {allUsers.map((row, i) => (
+                  {filteredUsers.map((row, i) => (
                     <tr key={i}>
                       <td data-label="Name">
                         {row.name}
@@ -192,6 +237,20 @@ export default function ParticipationClient({ data }: Props) {
                             style={{ marginLeft: "0.4rem", fontSize: "0.68rem" }}
                           >
                             Amion
+                          </span>
+                        )}
+                      </td>
+                      <td data-label="Specialty">
+                        {row.isAmion ? (
+                          <span className="badge" style={{ fontSize: "0.68rem" }}>
+                            Amion
+                          </span>
+                        ) : (
+                          <span
+                            className="badge badge-primary"
+                            style={{ fontSize: "0.68rem" }}
+                          >
+                            {row.specialty}
                           </span>
                         )}
                       </td>
