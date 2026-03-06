@@ -66,7 +66,7 @@ export default async function HomePage({
 
   // Past events are already reverse-chronological; group them the same way
   const pastMonthGroups = groupByMonth(pastEvents);
-  const pastMonthKeys = Object.keys(pastMonthGroups).sort().reverse();
+  const pastMonthKeys = Object.keys(pastMonthGroups).sort();
 
   return (
     <EventsClient

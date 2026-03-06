@@ -59,8 +59,8 @@ export async function listPastEvents(calendarId: string): Promise<CalendarEvent[
     timeMax: now.toISOString(),
     maxResults: 200,
   });
-  // Return in reverse chronological order (most recent first)
-  return ((res.data.items ?? []) as CalendarEvent[]).reverse();
+  // Return in ascending chronological order (July → today)
+  return (res.data.items ?? []) as CalendarEvent[];
 }
 
 export async function getEvent(
