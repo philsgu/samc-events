@@ -8,6 +8,8 @@ interface Props {
   events: CalendarEvent[];
   monthGroups: Record<string, { label: string; events: CalendarEvent[] }>;
   monthKeys: string[];
+  pastMonthGroups: Record<string, { label: string; events: CalendarEvent[] }>;
+  pastMonthKeys: string[];
   calKey: string;
   calendars: Record<string, CalendarInfo>;
   profile: Profile;
@@ -61,6 +63,8 @@ interface ModalState {
 export default function EventsClient({
   monthGroups,
   monthKeys,
+  pastMonthGroups,
+  pastMonthKeys,
   calKey,
   calendars,
   profile,
@@ -68,6 +72,7 @@ export default function EventsClient({
 }: Props) {
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [dropOpen, setDropOpen] = useState(false);
+  const [pastExpanded, setPastExpanded] = useState(false);
   const [modal, setModal] = useState<ModalState>({
     open: false, action: "sign-up", eventId: "", eventTitle: "", calKey,
   });
@@ -353,6 +358,116 @@ export default function EventsClient({
             </div>
           );
         })}
+
+      {/* Past Events toggle */}
+      {pastMonthKeys.length > 0 && (
+        <div style={{ marginTop: "2rem" }}>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => setPastExpanded((v) => !v)}
+            style={{ width: "100%", justifyContent: "space-between", display: "flex", alignItems: "center" }}
+          >
+            <span>Past Events (this academic year)</span>
+            <span style={{ fontSize: "0.8rem" }}>{pastExpanded ? "▲ Hide" : "▼ Show"}</span>
+          </button>
+
+          {pastExpanded && (
+            <div style={{ marginTop: "1rem" }}>
+              {pastMonthKeys.map((mk) => {
+                const { label, events: monthEvents } = pastMonthGroups[mk];
+                return (
+                  <div key={mk} className="month-section">
+                    <div className="month-divider">
+                      <h2 className="month-header" style={{ color: "var(--text-secondary)" }}>
+                        {label}
+                      </h2>
+                    </div>
+                    <div className="event-group">
+                      {monthEvents.map((ev) => {
+                        const liveEv = getEvent(ev);
+                        const signedUp = isSignedUp(ev);
+                        const { generic, signups } = parseSignupBlocks(liveEv.description ?? "");
+                        const startRaw = ev.start?.dateTime ?? ev.start?.date;
+                        return (
+                          <div key={ev.id} className="event-card" style={{ opacity: 0.75 }}>
+                            <h3 className="event-title">{ev.summary}</h3>
+                            <div className="event-meta">
+                              <div className="event-meta-row">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                {formatEventDate(startRaw)}
+                              </div>
+                              <div className="event-meta-row">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                {formatEventTime(startRaw)}
+                              </div>
+                            </div>
+
+                            {ev.location && (
+                              <div className="event-location">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.location)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="event-location-link"
+                                >
+                                  {ev.location}
+                                </a>
+                              </div>
+                            )}
+
+                            {(generic.length > 0 || signups.length > 0) && (
+                              <div className="event-desc-block">
+                                {generic.map((g, i) => (
+                                  <div key={i} dangerouslySetInnerHTML={{ __html: g.replace(/\n/g, "<br>") }} />
+                                ))}
+                                {signups.length > 0 && generic.length > 0 && <hr className="signup-sep" />}
+                                {signups.map((s, i) => {
+                                  const firstLine = s.split("\n")[0];
+                                  const signerName = firstLine.includes(":")
+                                    ? firstLine.split(":")[1].trim()
+                                    : firstLine;
+                                  return (
+                                    <div key={i} className="signup-entry">
+                                      <span dangerouslySetInnerHTML={{ __html: s.replace(/\n/g, "<br>") }} />
+                                      {profile?.is_admin && (
+                                        <button
+                                          className="btn btn-danger btn-sm"
+                                          style={{ flexShrink: 0 }}
+                                          onClick={() => openModal("cancel", liveEv, calKey, signerName)}
+                                        >
+                                          Remove
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            <div className="event-actions">
+                              {signedUp ? (
+                                <button
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() => openModal("cancel", liveEv, calKey)}
+                                >
+                                  Cancel
+                                </button>
+                              ) : (
+                                <span className="text-muted">Event passed</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Confirmation Modal */}
       <div className={`modal-overlay ${modal.open ? "open" : ""}`} onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>

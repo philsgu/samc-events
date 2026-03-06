@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { listEvents, getEventDateTime } from "@/lib/calendar";
+import { listEvents, listPastEvents, getEventDateTime } from "@/lib/calendar";
 import { CALENDARS, type CalendarEvent, type Profile } from "@/lib/types";
 import EventsClient from "@/components/EventsClient";
 import { redirect } from "next/navigation";
@@ -43,9 +43,13 @@ export default async function HomePage({
   const calInfo = CALENDARS[calKey];
 
   let events: CalendarEvent[] = [];
+  let pastEvents: CalendarEvent[] = [];
   let fetchError = "";
   try {
-    events = await listEvents(calInfo.id);
+    [events, pastEvents] = await Promise.all([
+      listEvents(calInfo.id),
+      listPastEvents(calInfo.id),
+    ]);
   } catch (e: unknown) {
     fetchError =
       e instanceof Error ? e.message : "Failed to load events.";
@@ -60,11 +64,17 @@ export default async function HomePage({
   const monthGroups = groupByMonth(events);
   const monthKeys = Object.keys(monthGroups).sort();
 
+  // Past events are already reverse-chronological; group them the same way
+  const pastMonthGroups = groupByMonth(pastEvents);
+  const pastMonthKeys = Object.keys(pastMonthGroups).sort().reverse();
+
   return (
     <EventsClient
       events={events}
       monthGroups={monthGroups}
       monthKeys={monthKeys}
+      pastMonthGroups={pastMonthGroups}
+      pastMonthKeys={pastMonthKeys}
       calKey={calKey}
       calendars={CALENDARS}
       profile={profile as Profile}

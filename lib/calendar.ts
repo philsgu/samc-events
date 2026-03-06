@@ -42,6 +42,27 @@ export async function listEvents(calendarId: string): Promise<CalendarEvent[]> {
   return (res.data.items ?? []) as CalendarEvent[];
 }
 
+export async function listPastEvents(calendarId: string): Promise<CalendarEvent[]> {
+  const service = await getCalendarService();
+  const now = new Date();
+  // Start of current academic year (July 1) — matches Amion year logic
+  const academicYearStart =
+    now.getMonth() >= 6
+      ? new Date(now.getFullYear(), 6, 1)      // July 1 this year
+      : new Date(now.getFullYear() - 1, 6, 1); // July 1 last year
+
+  const res = await service.events.list({
+    calendarId,
+    singleEvents: true,
+    orderBy: "startTime",
+    timeMin: academicYearStart.toISOString(),
+    timeMax: now.toISOString(),
+    maxResults: 200,
+  });
+  // Return in reverse chronological order (most recent first)
+  return ((res.data.items ?? []) as CalendarEvent[]).reverse();
+}
+
 export async function getEvent(
   calendarId: string,
   eventId: string
