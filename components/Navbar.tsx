@@ -85,6 +85,9 @@ export default function Navbar() {
               <li>
                 <Link href="/signed-up">Signed Up</Link>
               </li>
+              <li>
+                <Link href="/participation">Participation</Link>
+              </li>
               {profile?.is_admin && (
                 <li>
                   <Link href="/admin">Admin</Link>

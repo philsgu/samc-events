@@ -63,6 +63,28 @@ export async function listPastEvents(calendarId: string): Promise<CalendarEvent[
   return (res.data.items ?? []) as CalendarEvent[];
 }
 
+/**
+ * Fetch all events from the academic year start (July 1) with no timeMax,
+ * up to 500 results. The caller filters to events with start <= today.
+ */
+export async function listAllEvents(calendarId: string): Promise<CalendarEvent[]> {
+  const service = await getCalendarService();
+  const now = new Date();
+  const academicYearStart =
+    now.getMonth() >= 6
+      ? new Date(now.getFullYear(), 6, 1)
+      : new Date(now.getFullYear() - 1, 6, 1);
+
+  const res = await service.events.list({
+    calendarId,
+    singleEvents: true,
+    orderBy: "startTime",
+    timeMin: academicYearStart.toISOString(),
+    maxResults: 500,
+  });
+  return (res.data.items ?? []) as CalendarEvent[];
+}
+
 export async function getEvent(
   calendarId: string,
   eventId: string
