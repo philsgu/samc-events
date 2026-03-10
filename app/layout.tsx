@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "SAMC GME FM Events Signup",
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body>
         <Navbar />
         <section className="content">{children}</section>
+        <Analytics />
       </body>
     </html>
   );
