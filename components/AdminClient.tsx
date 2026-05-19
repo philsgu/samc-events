@@ -230,7 +230,7 @@ export default function AdminClient({ users: initialUsers, currentUserId, lastRe
           Amion Block Schedule Sync
         </h2>
         <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 1rem" }}>
-          Auto-assign MCUC residents from Amion to matching Mobile Clinic calendar events.
+          Auto-assign MCUC/CH residents from Amion to matching Mobile Clinic calendar events.
         </p>
 
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "flex-end" }}>
