@@ -104,8 +104,8 @@ export async function fetchMcucResidents(
     const assignmentName = fields[3];
     const assignmentType = fields[15]; // "r" for rotation
 
-    // Only MCUC rotation entries
-    if (assignmentName !== "MCUC" || assignmentType !== "r") continue;
+    // Only MCUC or CH rotation entries
+    if ((assignmentName !== "MCUC" && assignmentName !== "CH") || assignmentType !== "r") continue;
 
     const name = fields[0];
     const dateRaw = fields[6];
